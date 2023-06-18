@@ -385,22 +385,6 @@ var callback = function () {
     autoHeight: false,
   });
 
-  // ===============
-  // Search Vacancies Scripts
-  // ===============
-  var my_func = function (event) {
-    event.preventDefault();
-    window.open(
-      `https://www.zarplata.ru/vacancy?q=${event.target[0].value}&salary=${event.target[1].value}&utm_source=blog_vacancy`,
-      "_blank"
-    );
-  };
-
-  // your form
-  var form = document.getElementById("findPosition");
-
-  // attach event listener
-  form.addEventListener("submit", my_func, true);
 
   // ===============
   // Members Scripts
@@ -409,7 +393,8 @@ var callback = function () {
   const action = getParameterByName("action");
   const stripe = getParameterByName("stripe");
   // getVacancies();
-  subscribePopip();
+  // subscribePopip();
+
 
   switch (action) {
     case "subscribe":
@@ -463,6 +448,18 @@ var callback = function () {
       loadMorePosts(loadMoreBtn);
     };
   }
+
+  // ===============
+  // Search Vacancies Scripts
+  // ===============
+  const searchVacancyForm = document.getElementById("findPosition");
+  searchVacancyForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    window.open(
+      `https://www.zarplata.ru/vacancy?q=${event.target[0].value}&salary=${event.target[1].value}&utm_source=blog_vacancy`,
+      "_blank"
+    );
+  });
 
   // ===========
   // Blog search
@@ -642,6 +639,38 @@ var callback = function () {
   const rPoo = document.querySelector("#r-poo");
   const rDislike = document.querySelector("#r-dislike");
 
+  const rLikeButton = document.querySelector("#r-like-button");
+  const rFireButton = document.querySelector("#r-fire-button");
+  const rFaceButton = document.querySelector("#r-face-button");
+  const rPooButton = document.querySelector("#r-poo-button");
+  const rDislikeButton = document.querySelector("#r-dislike-button");
+
+  rLikeButton.addEventListener("click", () => {
+    if (!rLikeButton.classList.contains("active")) {
+      ym(77659420, "reachGoal", "reactionLike");
+    }
+  });
+  rFireButton.addEventListener("click", () => {
+    if (!rFireButton.classList.contains("active")) {
+      ym(77659420, "reachGoal", "reactionFire");
+    }
+  });
+  rFaceButton.addEventListener("click", () => {
+    if (!rFaceButton.classList.contains("active")) {
+      ym(77659420, "reachGoal", "reactionNeutral");
+    }
+  });
+  rPooButton.addEventListener("click", () => {
+    if (!rPooButton.classList.contains("active")) {
+      ym(77659420, "reachGoal", "reactionPoo");
+    }
+  });
+  rDislikeButton.addEventListener("click", () => {
+    if (!rDislikeButton.classList.contains("active")) {
+      ym(77659420, "reachGoal", "reactionDislike");
+    }
+  });
+
   const emoj = ["like", "fire", "poker_face", "poo", "dislike"];
 
   const post_name = document.querySelector("#site_url");
@@ -693,32 +722,40 @@ var callback = function () {
 
   reactionsButtons.forEach((btn, idx) => {
     btn.addEventListener("click", () => {
-      if (window.sessionStorage.getItem(postHash)) {
-        const idx = emoj.findIndex((el) => {
-          return el == window.sessionStorage.getItem(postHash);
-        });
-        reactionsCounters[idx].innerText =
-          parseInt(reactionsCounters[idx].innerText) - 1;
-        reactionsButtons[idx].classList.remove("active");
-        db.collection("reactions")
-          .doc(postHash)
-          .update({
-            [emoj[idx]]: parseInt(reactionsCounters[idx].innerText),
-          });
+      // Функция для обновления счетчика реакции и сохранения его в базе данных
+      function updateReaction(postHash, idx, counterChange) {
+        const currentCounter = parseInt(reactionsCounters[idx].innerText);
+        reactionsCounters[idx].innerText = currentCounter + counterChange;
+
+        const reactionUpdate = { [emoj[idx]]: currentCounter + counterChange };
+        db.collection("reactions").doc(postHash).update(reactionUpdate);
       }
 
-      window.sessionStorage.setItem(postHash, [emoj[idx]]);
+      // Функция для добавления или удаления класса "active" у кнопки реакции
+      function toggleButtonActive(idx, isActive) {
+        const method = isActive ? "add" : "remove";
+        reactionsButtons[idx].classList[method]("active");
+      }
 
-      reactionsCounters[idx].innerText =
-        parseInt(reactionsCounters[idx].innerText) + 1;
+      // Получаем сохраненную реакцию из sessionStorage
+      const storedReaction = window.sessionStorage.getItem(postHash);
 
-      reactionsButtons[idx].classList.add("active");
+      // Если была сохраненная реакция, уменьшаем счетчик этой реакции на 1 и убираем активность с кнопки
+      if (storedReaction) {
+        const storedReactionIdx = emoj.findIndex((el) => el === storedReaction);
+        updateReaction(postHash, storedReactionIdx, -1);
+        toggleButtonActive(storedReactionIdx, false);
+      }
 
-      db.collection("reactions")
-        .doc(postHash)
-        .update({
-          [emoj[idx]]: parseInt(reactionsCounters[idx].innerText),
-        });
+      // Если пользователь повторно нажал на ту же реакцию, убираем эту реакцию
+      if (storedReaction === emoj[idx]) {
+        window.sessionStorage.removeItem(postHash);
+      } else {
+        // В противном случае, сохраняем выбранную реакцию, увеличиваем счетчик на 1 и добавляем активность кнопке
+        window.sessionStorage.setItem(postHash, emoj[idx]);
+        updateReaction(postHash, idx, 1);
+        toggleButtonActive(idx, true);
+      }
     });
   });
 };
